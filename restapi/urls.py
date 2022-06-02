@@ -6,13 +6,13 @@ from restapi.views import user_view_set, category_view_set, group_view_set, expe
     logProcessor
 
 
-router = DefaultRouter()
+router: DefaultRouter = DefaultRouter()
 router.register('users', user_view_set)
 router.register('categories', category_view_set)
 router.register('groups', group_view_set)
 router.register('expenses', expenses_view_set)
 
-urlpatterns = [
+urlpatterns: list[path] = [
     path('', index, name='index'),
     path('auth/logout/', logout),
     path('auth/login/', views.obtain_auth_token),

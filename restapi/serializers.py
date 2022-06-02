@@ -6,40 +6,40 @@ from restapi.models import Category, Groups, UserExpense, Expenses
 
 
 class UserSerializer(ModelSerializer):
-    def create(self, validated_data):
-        user = User.objects.create_user(**validated_data)
+    def create(self, validated_data) -> User:
+        user: User = User.objects.create_user(**validated_data)
         return user
 
     class Meta(object):
-        model = User
-        fields = ('id', 'username', 'password')
-        extra_kwargs = {
+        model: type = User
+        fields: tuple[str, str, str] = ('id', 'username', 'password')
+        extra_kwargs: dict = {
             'password': {'write_only': True}
         }
 
 
 class CategorySerializer(ModelSerializer):
     class Meta(object):
-        model = Category
-        fields = '__all__'
+        model: type = Category
+        fields: str = '__all__'
 
 
 class GroupSerializer(ModelSerializer):
-    members = UserSerializer(many=True, required=False)
+    members: UserSerializer = UserSerializer(many=True, required=False)
 
     class Meta(object):
-        model = Groups
-        fields = '__all__'
+        model: type = Groups
+        fields: str = '__all__'
 
 
 class UserExpenseSerializer(ModelSerializer):
     class Meta(object):
-        model = UserExpense
-        fields = ['user', 'amount_owed', 'amount_lent']
+        model: type = UserExpense
+        fields: list[str] = ['user', 'amount_owed', 'amount_lent']
 
 
 class ExpensesSerializer(ModelSerializer):
-    users = UserExpenseSerializer(many=True, required=True)
+    users: UserExpenseSerializer = UserExpenseSerializer(many=True, required=True)
 
     def create(self, validated_data):
         expense_users = validated_data.pop('users')
@@ -98,5 +98,5 @@ class ExpensesSerializer(ModelSerializer):
         return attrs
 
     class Meta(object):
-        model = Expenses
-        fields = '__all__'
+        model: type = Expenses
+        fields: str = '__all__'

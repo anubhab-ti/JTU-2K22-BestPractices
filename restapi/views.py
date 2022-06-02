@@ -19,24 +19,24 @@ from rest_framework import status
 from restapi.models import *
 from restapi.serializers import *
 from restapi.custom_exception import *
+from django.db.models.query import QuerySet
 
 
-
-def index(_request):
+def index(_request) -> HttpResponse:
     return HttpResponse("Hello, world. You're at Rest.")
 
 
 @api_view(['POST'])
-def logout(request):
+def logout(request) -> Response:
     request.user.auth_token.delete()
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(['GET'])
-def balance(request):
+def balance(request) -> Response:
     user = request.user
     expenses = Expenses.objects.filter(users__in=user.expenses.all())
-    final_balance = {}
+    final_balance: dict = {}
     for expense in expenses:
         expense_balances = normalize(expense)
         for eb in expense_balances:
@@ -46,25 +46,27 @@ def balance(request):
                 final_balance[to_user] = final_balance.get(to_user, 0) - eb['amount']
             if to_user == user.id:
                 final_balance[from_user] = final_balance.get(from_user, 0) + eb['amount']
-    final_balance = {k: v for k, v in final_balance.items() if v != 0}
+    final_balance: dict = {k: v for k, v in final_balance.items() if v != 0}
 
-    response = [{"user": k, "amount": int(v)} for k, v in final_balance.items()]
+    response: list[dict] = [{"user": k, "amount": int(v)} for k, v in final_balance.items()]
     return Response(response, status=200)
 
 
-def normalize(expense):
+def normalize(expense) -> list[dict]:
     user_balances = expense.users.all()
+    # not giving a static type to dues
+    # first initialised (and used in line 60) as a dict, but then reassigned a list[tuple] in line 63
     dues = {}
     for user_balance in user_balances:
         dues[user_balance.user] = dues.get(user_balance.user, 0) + user_balance.amount_lent \
                                   - user_balance.amount_owed
     dues = [(k, v) for k, v in sorted(dues.items(), key=lambda item: item[1])]
-    start = 0
-    end = len(dues) - 1
-    balances = []
+    start: int = 0
+    end: int = len(dues) - 1
+    balances: list[dict] = []
     while start < end:
-        amount = min(abs(dues[start][1]), abs(dues[end][1]))
-        user_balance = {"from_user": dues[start][0].id, "to_user": dues[end][0].id, "amount": amount}
+        amount: int = min(abs(dues[start][1]), abs(dues[end][1]))
+        user_balance: dict = {"from_user": dues[start][0].id, "to_user": dues[end][0].id, "amount": amount}
         balances.append(user_balance)
         dues[start] = (dues[start][0], dues[start][1] + amount)
         dues[end] = (dues[end][0], dues[end][1] - amount)
@@ -76,20 +78,20 @@ def normalize(expense):
 
 
 class user_view_set(ModelViewSet):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
-    permission_classes = (AllowAny,)
+    queryset: QuerySet = User.objects.all()
+    serializer_class: type = UserSerializer
+    permission_classes: tuple[type]  = (AllowAny,)
 
 
 class category_view_set(ModelViewSet):
-    queryset = Category.objects.all()
-    serializer_class = CategorySerializer
-    http_method_names = ['get', 'post']
+    queryset: QuerySet = Category.objects.all()
+    serializer_class: type = CategorySerializer
+    http_method_names: list[str] = ['get', 'post']
 
 
 class group_view_set(ModelViewSet):
-    queryset = Groups.objects.all()
-    serializer_class = GroupSerializer
+    queryset: QuerySet = Groups.objects.all()
+    serializer_class: type = GroupSerializer
 
     def get_queryset(self):
         user = self.request.user
@@ -98,17 +100,17 @@ class group_view_set(ModelViewSet):
             groups = groups.filter(name__icontains=self.request.query_params.get('q', None))
         return groups
 
-    def create(self, request, *args, **kwargs):
+    def create(self, request, *args, **kwargs) -> Response:
         user = self.request.user
         data = self.request.data
-        group = Groups(**data)
+        group: Groups = Groups(**data)
         group.save()
         group.members.add(user)
         serializer = self.get_serializer(group)
         return Response(serializer.data, status=201)
 
     @action(methods=['put'], detail=True)
-    def members(self, request, pk=None):
+    def members(self, request, pk=None) -> Response:
         group = Groups.objects.get(id=pk)
         if group not in self.get_queryset():
             raise UnauthorizedUserException()
@@ -125,16 +127,16 @@ class group_view_set(ModelViewSet):
         return Response(status=204)
 
     @action(methods=['get'], detail=True)
-    def expenses(self, _request, pk=None):
+    def expenses(self, _request, pk=None) -> Response:
         group = Groups.objects.get(id=pk)
         if group not in self.get_queryset():
             raise UnauthorizedUserException()
         expenses = group.expenses_set
-        serializer = ExpensesSerializer(expenses, many=True)
+        serializer: ExpensesSerializer = ExpensesSerializer(expenses, many=True)
         return Response(serializer.data, status=200)
 
     @action(methods=['get'], detail=True)
-    def balances(self, _request, pk=None):
+    def balances(self, _request, pk=None) -> Response:
         group = Groups.objects.get(id=pk)
         if group not in self.get_queryset():
             raise UnauthorizedUserException()
@@ -146,13 +148,13 @@ class group_view_set(ModelViewSet):
                 dues[user_balance.user] = dues.get(user_balance.user, 0) + user_balance.amount_lent \
                                           - user_balance.amount_owed
         dues = [(k, v) for k, v in sorted(dues.items(), key=lambda item: item[1])]
-        start = 0
-        end = len(dues) - 1
-        balances = []
+        start: int = 0
+        end: int = len(dues) - 1
+        balances: list[dict] = []
         while start < end:
             amount = min(abs(dues[start][1]), abs(dues[end][1]))
             amount = Decimal(amount).quantize(Decimal(10)**-2)
-            user_balance = {"from_user": dues[start][0].id, "to_user": dues[end][0].id, "amount": str(amount)}
+            user_balance: dict = {"from_user": dues[start][0].id, "to_user": dues[end][0].id, "amount": str(amount)}
             balances.append(user_balance)
             dues[start] = (dues[start][0], dues[start][1] + amount)
             dues[end] = (dues[end][0], dues[end][1] - amount)
@@ -165,8 +167,8 @@ class group_view_set(ModelViewSet):
 
 
 class expenses_view_set(ModelViewSet):
-    queryset = Expenses.objects.all()
-    serializer_class = ExpensesSerializer
+    queryset: QuerySet = Expenses.objects.all()
+    serializer_class: type = ExpensesSerializer
 
     def get_queryset(self):
         user = self.request.user
@@ -180,7 +182,7 @@ class expenses_view_set(ModelViewSet):
 @api_view(['post'])
 @authentication_classes([])
 @permission_classes([])
-def logProcessor(request):
+def logProcessor(request) -> Response:
     data = request.data
     num_threads = data['parallelFileProcessingCount']
     log_files = data['logFiles']
@@ -190,35 +192,35 @@ def logProcessor(request):
     if len(log_files) == 0:
         return Response({"status": "failure", "reason": "No log files provided in request"},
                         status=status.HTTP_400_BAD_REQUEST)
-    logs = multiThreadedReader(urls=data['logFiles'], num_threads=data['parallelFileProcessingCount'])
-    sorted_logs = sort_by_time_stamp(logs)
-    cleaned = transform(sorted_logs)
-    data = aggregate(cleaned)
-    response = response_format(data)
+    logs: multiThreadedReader = multiThreadedReader(urls=data['logFiles'], num_threads=data['parallelFileProcessingCount'])
+    sorted_logs: list = sort_by_time_stamp(logs)
+    cleaned: list = transform(sorted_logs)
+    data: dict = aggregate(cleaned)
+    response: list = response_format(data)
     return Response({"response":response}, status=status.HTTP_200_OK)
 
 def sort_by_time_stamp(logs):
-    data = []
+    data: list = []
     for log in logs:
         data.append(log.split(" "))
     # print(data)
     data = sorted(data, key=lambda elem: elem[1])
     return data
 
-def response_format(raw_data):
-    response = []
+def response_format(raw_data) -> list:
+    response: list = []
     for timestamp, data in raw_data.items():
-        entry = {'timestamp': timestamp}
-        logs = []
-        data = {k: data[k] for k in sorted(data.keys())}
+        entry: dict = {'timestamp': timestamp}
+        logs: list[dict] = []
+        data: dict = {k: data[k] for k in sorted(data.keys())}
         for exception, count in data.items():
             logs.append({'exception': exception, 'count': count})
         entry['logs'] = logs
         response.append(entry)
     return response
 
-def aggregate(cleaned_logs):
-    data = {}
+def aggregate(cleaned_logs) -> dict:
+    data: dict = {}
     for log in cleaned_logs:
         [key, text] = log
         value = data.get(key, {})
@@ -227,12 +229,12 @@ def aggregate(cleaned_logs):
     return data
 
 
-def transform(logs):
-    result = []
+def transform(logs) -> list:
+    result: list = []
     for log in logs:
         [_, timestamp, text] = log
         text = text.rstrip()
-        timestamp = datetime.utcfromtimestamp(int(int(timestamp)/1000))
+        timestamp: datetime = datetime.utcfromtimestamp(int(int(timestamp)/1000))
         hours, minutes = timestamp.hour, timestamp.minute
         key = ''
 
@@ -259,11 +261,11 @@ def reader(url, timeout):
         return conn.read()
 
 
-def multiThreadedReader(urls, num_threads):
+def multiThreadedReader(urls, num_threads) -> list:
     """
         Read multiple files through HTTP
     """
-    result = []
+    result: list = []
     for url in urls:
         data = reader(url, 60)
         data = data.decode('utf-8')
