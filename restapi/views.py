@@ -19,6 +19,7 @@ from restapi.custom_exception import UnauthorizedUserException
 from django.db.models.query import QuerySet
 
 import constants
+import concurrent.futures
 
 
 def index(_request) -> HttpResponse:
@@ -278,9 +279,17 @@ def multi_threaded_reader(urls, num_threads) -> list:
         Read multiple files through HTTP
     """
     result: list = []
-    for url in urls:
-        data = reader(url, constants.MULTI_THREADED_READER_TIMEOUT)
-        data = data.decode('utf-8')
-        result.extend(data.split("\n"))
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        future_url_map = {executor.submit(
+            reader, url, constants.MULTI_THREADED_READER_TIMEOUT): url for url in urls}
+        for future in concurrent.futures.as_completed(future_url_map):
+            url = future_url_map[future]
+            try:
+                data = future.result()
+                data = data.decode('utf-8')
+                result.extend(data.split('\n'))
+            except Exception as e:
+                # will be logged after logger is set up
+                pass
     result = sorted(result, key=lambda elem: elem[1])
     return result
