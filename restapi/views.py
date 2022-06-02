@@ -46,7 +46,7 @@ def balance(request) -> Response:
     final_balance: dict = {k: v for k, v in final_balance.items() if v != 0}
 
     response: list[dict] = [{"user": k, "amount": int(v)} for k, v in final_balance.items()]
-    return Response(response, status=200)
+    return Response(response, status=status.HTTP_200_OK)
 
 
 def normalize(expense) -> list[dict]:
@@ -104,7 +104,7 @@ class GroupViewSet(ModelViewSet):
         group.save()
         group.members.add(user)
         serializer = self.get_serializer(group)
-        return Response(serializer.data, status=201)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(methods=['put'], detail=True)
     def members(self, request, pk=None) -> Response:
@@ -121,7 +121,7 @@ class GroupViewSet(ModelViewSet):
             for user_id in removed_ids:
                 group.members.remove(user_id)
         group.save()
-        return Response(status=204)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(methods=['get'], detail=True)
     def expenses(self, _request, pk=None) -> Response:
@@ -130,7 +130,7 @@ class GroupViewSet(ModelViewSet):
             raise UnauthorizedUserException()
         expenses = group.expenses_set
         serializer: ExpensesSerializer = ExpensesSerializer(expenses, many=True)
-        return Response(serializer.data, status=200)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(methods=['get'], detail=True)
     def balances(self, _request, pk=None) -> Response:
@@ -160,7 +160,7 @@ class GroupViewSet(ModelViewSet):
             else:
                 end -= 1
 
-        return Response(balances, status=200)
+        return Response(balances, status=status.HTTP_200_OK)
 
 
 class ExpensesViewSet(ModelViewSet):
