@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 from decimal import Decimal
+from time import time
 import urllib.request
 from datetime import datetime
 
@@ -20,11 +21,12 @@ from django.db.models.query import QuerySet
 
 import constants
 import concurrent.futures
+import logging
 
+logger = logging.getLogger(__name__)
 
 def index(_request) -> HttpResponse:
     return HttpResponse("Hello, world. You're at Rest.")
-
 
 @api_view(['POST'])
 def logout(request) -> Response:
@@ -32,6 +34,7 @@ def logout(request) -> Response:
     Logs out the user identified by auth_token in request
     '''
     request.user.auth_token.delete()
+    logger.info(f'Logged out user with auth_token: {request.user.auth_token}')
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -135,10 +138,11 @@ class GroupViewSet(ModelViewSet):
     @action(methods=['put'], detail=True)
     def members(self, request, pk=None) -> Response:
         '''
-        Returns the members of a group
+        Adds or removes users to a group
         '''
         group = Groups.objects.get(id=pk)
         if group not in self.get_queryset():
+            logger.error(f'Attempt to add or remove members to group with primary key: {pk} by unauthorised user')
             raise UnauthorizedUserException()
         body = request.data
         if body.get('add', None) is not None and body['add'].get('user_ids', None) is not None:
@@ -159,6 +163,7 @@ class GroupViewSet(ModelViewSet):
         '''
         group = Groups.objects.get(id=pk)
         if group not in self.get_queryset():
+            logger.error(f'Attempt to retrieve expenses of group with primary key: {pk} by unauthorised user')
             raise UnauthorizedUserException()
         expenses = group.expenses_set
         serializer: ExpensesSerializer = ExpensesSerializer(
@@ -172,6 +177,7 @@ class GroupViewSet(ModelViewSet):
         '''
         group = Groups.objects.get(id=pk)
         if group not in self.get_queryset():
+            logger.error(f'Attempt to retrieve balances of group with primary key: {pk} by unauthorised user')
             raise UnauthorizedUserException()
         expenses = Expenses.objects.filter(group=group)
         dues = {}
@@ -229,9 +235,11 @@ def log_processor(request) -> Response:
     num_threads = data['parallelFileProcessingCount']
     log_files = data['logFiles']
     if num_threads <= 0 or num_threads > 30:
+        logger.info(f'Failed to process logs for request: {data} as given number of threads: {num_threads} is outside the expected bounds [1, 30]')
         return Response({"status": "failure", "reason": "Parallel Processing Count out of expected bounds"},
                         status=status.HTTP_400_BAD_REQUEST)
     if len(log_files) == 0:
+        logger.info(f'Failed to process logs for request: {data} as no log files are provided in request')
         return Response({"status": "failure", "reason": "No log files provided in request"},
                         status=status.HTTP_400_BAD_REQUEST)
     logs: multi_threaded_reader = multi_threaded_reader(
@@ -327,7 +335,8 @@ def multi_threaded_reader(urls, num_threads) -> list:
         Read multiple files through HTTP
     """
     result: list = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+    start_time = int(time.time() * 1000.0)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
         future_url_map = {executor.submit(
             reader, url, constants.MULTI_THREADED_READER_TIMEOUT): url for url in urls}
         for future in concurrent.futures.as_completed(future_url_map):
@@ -337,7 +346,9 @@ def multi_threaded_reader(urls, num_threads) -> list:
                 data = data.decode('utf-8')
                 result.extend(data.split('\n'))
             except Exception as e:
-                # will be logged after logger is set up
+                logger.error(f"Concurrent execution of multithreaded reader with number of urls: {len(urls)} and number of threads: {num_threads} failed for url: {url} due to {e}")
                 pass
+    end_time = int(time.time() * 1000.0)
+    logger.info(f"Multithreaded reader executed succesfully with {len(urls)} urls and {num_threads} threads in {end_time - start_time} ms")
     result = sorted(result, key=lambda elem: elem[1])
     return result

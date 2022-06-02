@@ -1,9 +1,11 @@
+import logging
 from rest_framework.serializers import ModelSerializer
 from rest_framework.serializers import ValidationError
 from django.contrib.auth.models import User
 
 from restapi.models import Category, Groups, UserExpense, Expenses
 
+logger = logging.getLogger(__name__)
 
 class UserSerializer(ModelSerializer):
     def create(self, validated_data) -> User:
@@ -11,6 +13,7 @@ class UserSerializer(ModelSerializer):
         Creates an user for given validated data and returns the user object
         '''
         user: User = User.objects.create_user(**validated_data)
+        logger.info(f"Created new user with data: {validated_data}")
         return user
 
     class Meta(object):
@@ -82,6 +85,7 @@ class ExpensesSerializer(ModelSerializer):
         '''
         user_ids = [user['user'].id for user in attrs['users']]
         if len(set(user_ids)) != len(user_ids):
+            logger.error(f'{len(set(user_ids)) - len(user_ids)} repetitions found in list of user ids')
             raise ValidationError('Single user appears multiple times')
 
         return attrs
