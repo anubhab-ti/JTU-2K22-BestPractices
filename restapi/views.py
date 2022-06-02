@@ -28,12 +28,18 @@ def index(_request) -> HttpResponse:
 
 @api_view(['POST'])
 def logout(request) -> Response:
+    '''
+    Logs out the user identified by auth_token in request
+    '''
     request.user.auth_token.delete()
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(['GET'])
 def balance(request) -> Response:
+    '''
+    Returns the set of expenses related to the account of the user
+    '''
     user = request.user
     expenses = Expenses.objects.filter(users__in=user.expenses.all())
     final_balance: dict = {}
@@ -56,6 +62,12 @@ def balance(request) -> Response:
 
 
 def normalize(expense) -> list[dict]:
+    '''
+    Returns the balanced expense for the passed expense
+
+    Parameters:
+    expense: An expense made from or to a user's account
+    '''
     user_balances = expense.users.all()
     # not giving a static type to dues
     # first initialised (and used in line 60) as a dict, but then reassigned a list[tuple] in line 63
@@ -98,6 +110,9 @@ class GroupViewSet(ModelViewSet):
     serializer_class: type = GroupSerializer
 
     def get_queryset(self):
+        '''
+        Returns the query set of groups for a given user
+        '''
         user = self.request.user
         groups = user.members.all()
         if self.request.query_params.get('q', None) is not None:
@@ -106,6 +121,9 @@ class GroupViewSet(ModelViewSet):
         return groups
 
     def create(self, request, *args, **kwargs) -> Response:
+        '''
+        Creates a group for a user with given data
+        '''
         user = self.request.user
         data = self.request.data
         group: Groups = Groups(**data)
@@ -116,6 +134,9 @@ class GroupViewSet(ModelViewSet):
 
     @action(methods=['put'], detail=True)
     def members(self, request, pk=None) -> Response:
+        '''
+        Returns the members of a group
+        '''
         group = Groups.objects.get(id=pk)
         if group not in self.get_queryset():
             raise UnauthorizedUserException()
@@ -133,6 +154,9 @@ class GroupViewSet(ModelViewSet):
 
     @action(methods=['get'], detail=True)
     def expenses(self, _request, pk=None) -> Response:
+        '''
+        Returns the list of expenses made by a group
+        '''
         group = Groups.objects.get(id=pk)
         if group not in self.get_queryset():
             raise UnauthorizedUserException()
@@ -143,6 +167,9 @@ class GroupViewSet(ModelViewSet):
 
     @action(methods=['get'], detail=True)
     def balances(self, _request, pk=None) -> Response:
+        '''
+        Returns the balances of a group
+        '''
         group = Groups.objects.get(id=pk)
         if group not in self.get_queryset():
             raise UnauthorizedUserException()
@@ -179,6 +206,9 @@ class ExpensesViewSet(ModelViewSet):
     serializer_class: type = ExpensesSerializer
 
     def get_queryset(self):
+        '''
+        Returns the query set for given user
+        '''
         user = self.request.user
         if self.request.query_params.get('q', None) is not None:
             expenses = Expenses.objects.filter(users__in=user.expenses.all())\
@@ -192,6 +222,9 @@ class ExpensesViewSet(ModelViewSet):
 @authentication_classes([])
 @permission_classes([])
 def log_processor(request) -> Response:
+    '''
+    Returns a cleaned and timestamp sorted list of logs for given request data
+    '''
     data = request.data
     num_threads = data['parallelFileProcessingCount']
     log_files = data['logFiles']
@@ -211,6 +244,9 @@ def log_processor(request) -> Response:
 
 
 def sort_by_time_stamp(logs):
+    '''
+    Returns a list of logs sorted by timestamp
+    '''
     data: list = []
     for log in logs:
         data.append(log.split(" "))
@@ -219,6 +255,9 @@ def sort_by_time_stamp(logs):
 
 
 def response_format(raw_data) -> list:
+    '''
+    Returns a list of logs formatted for the response object
+    '''
     response: list = []
     for timestamp, data in raw_data.items():
         entry: dict = {'timestamp': timestamp}
@@ -232,6 +271,9 @@ def response_format(raw_data) -> list:
 
 
 def aggregate(cleaned_logs) -> dict:
+    '''
+    Returns an aggregated dictionary of logs from cleaned logs
+    '''
     data: dict = {}
     for log in cleaned_logs:
         [key, text] = log
@@ -242,6 +284,9 @@ def aggregate(cleaned_logs) -> dict:
 
 
 def transform(logs) -> list:
+    '''
+    Returns a list of logs transformed into a valid format for the response object
+    '''
     result: list = []
     for log in logs:
         [_, timestamp, text] = log
@@ -270,6 +315,9 @@ def transform(logs) -> list:
 
 
 def reader(url, timeout):
+    '''
+    Makes a request to the passed url and returns the read data
+    '''
     with urllib.request.urlopen(url, timeout=timeout) as conn:
         return conn.read()
 

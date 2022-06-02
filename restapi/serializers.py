@@ -7,6 +7,9 @@ from restapi.models import Category, Groups, UserExpense, Expenses
 
 class UserSerializer(ModelSerializer):
     def create(self, validated_data) -> User:
+        '''
+        Creates an user for given validated data and returns the user object
+        '''
         user: User = User.objects.create_user(**validated_data)
         return user
 
@@ -43,6 +46,9 @@ class ExpensesSerializer(ModelSerializer):
         many=True, required=True)
 
     def create(self, validated_data):
+        '''
+        Creates an expense for given users and validated data and returns the expense object
+        '''
         expense_users = validated_data.pop('users')
         expense = Expenses.objects.create(**validated_data)
         for eu in expense_users:
@@ -50,6 +56,9 @@ class ExpensesSerializer(ModelSerializer):
         return expense
 
     def update(self, instance, validated_data):
+        '''
+        Updates the data for expenses from given validated data
+        '''
         user_expenses = validated_data.pop('users')
         instance.description = validated_data['description']
         instance.category = validated_data['category']
@@ -68,6 +77,9 @@ class ExpensesSerializer(ModelSerializer):
         return instance
 
     def validate(self, attrs):
+        '''
+        Validates that the same user does not appear multiple times in the data
+        '''
         user_ids = [user['user'].id for user in attrs['users']]
         if len(set(user_ids)) != len(user_ids):
             raise ValidationError('Single user appears multiple times')
