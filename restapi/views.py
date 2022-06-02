@@ -42,12 +42,15 @@ def balance(request) -> Response:
             from_user = eb['from_user']
             to_user = eb['to_user']
             if from_user == user.id:
-                final_balance[to_user] = final_balance.get(to_user, 0) - eb['amount']
+                final_balance[to_user] = final_balance.get(
+                    to_user, 0) - eb['amount']
             if to_user == user.id:
-                final_balance[from_user] = final_balance.get(from_user, 0) + eb['amount']
+                final_balance[from_user] = final_balance.get(
+                    from_user, 0) + eb['amount']
     final_balance: dict = {k: v for k, v in final_balance.items() if v != 0}
 
-    response: list[dict] = [{"user": k, "amount": int(v)} for k, v in final_balance.items()]
+    response: list[dict] = [
+        {"user": k, "amount": int(v)} for k, v in final_balance.items()]
     return Response(response, status=status.HTTP_200_OK)
 
 
@@ -58,14 +61,15 @@ def normalize(expense) -> list[dict]:
     dues = {}
     for user_balance in user_balances:
         dues[user_balance.user] = dues.get(user_balance.user, 0) + user_balance.amount_lent \
-                                  - user_balance.amount_owed
+            - user_balance.amount_owed
     dues = [(k, v) for k, v in sorted(dues.items(), key=lambda item: item[1])]
     start: int = 0
     end: int = len(dues) - 1
     balances: list[dict] = []
     while start < end:
         amount: int = min(abs(dues[start][1]), abs(dues[end][1]))
-        user_balance: dict = {"from_user": dues[start][0].id, "to_user": dues[end][0].id, "amount": amount}
+        user_balance: dict = {
+            "from_user": dues[start][0].id, "to_user": dues[end][0].id, "amount": amount}
         balances.append(user_balance)
         dues[start] = (dues[start][0], dues[start][1] + amount)
         dues[end] = (dues[end][0], dues[end][1] - amount)
@@ -79,7 +83,7 @@ def normalize(expense) -> list[dict]:
 class UserViewSet(ModelViewSet):
     queryset: QuerySet = User.objects.all()
     serializer_class: type = UserSerializer
-    permission_classes: tuple[type]  = (AllowAny,)
+    permission_classes: tuple[type] = (AllowAny,)
 
 
 class CategoryViewSet(ModelViewSet):
@@ -96,7 +100,8 @@ class GroupViewSet(ModelViewSet):
         user = self.request.user
         groups = user.members.all()
         if self.request.query_params.get('q', None) is not None:
-            groups = groups.filter(name__icontains=self.request.query_params.get('q', None))
+            groups = groups.filter(
+                name__icontains=self.request.query_params.get('q', None))
         return groups
 
     def create(self, request, *args, **kwargs) -> Response:
@@ -131,7 +136,8 @@ class GroupViewSet(ModelViewSet):
         if group not in self.get_queryset():
             raise UnauthorizedUserException()
         expenses = group.expenses_set
-        serializer: ExpensesSerializer = ExpensesSerializer(expenses, many=True)
+        serializer: ExpensesSerializer = ExpensesSerializer(
+            expenses, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(methods=['get'], detail=True)
@@ -145,15 +151,17 @@ class GroupViewSet(ModelViewSet):
             user_balances = UserExpense.objects.filter(expense=expense)
             for user_balance in user_balances:
                 dues[user_balance.user] = dues.get(user_balance.user, 0) + user_balance.amount_lent \
-                                          - user_balance.amount_owed
-        dues = [(k, v) for k, v in sorted(dues.items(), key=lambda item: item[1])]
+                    - user_balance.amount_owed
+        dues = [(k, v)
+                for k, v in sorted(dues.items(), key=lambda item: item[1])]
         start: int = 0
         end: int = len(dues) - 1
         balances: list[dict] = []
         while start < end:
             amount = min(abs(dues[start][1]), abs(dues[end][1]))
             amount = Decimal(amount).quantize(Decimal(10)**-2)
-            user_balance: dict = {"from_user": dues[start][0].id, "to_user": dues[end][0].id, "amount": str(amount)}
+            user_balance: dict = {
+                "from_user": dues[start][0].id, "to_user": dues[end][0].id, "amount": str(amount)}
             balances.append(user_balance)
             dues[start] = (dues[start][0], dues[start][1] + amount)
             dues[end] = (dues[end][0], dues[end][1] - amount)
@@ -178,6 +186,7 @@ class ExpensesViewSet(ModelViewSet):
             expenses = Expenses.objects.filter(users__in=user.expenses.all())
         return expenses
 
+
 @api_view(['post'])
 @authentication_classes([])
 @permission_classes([])
@@ -191,12 +200,14 @@ def log_processor(request) -> Response:
     if len(log_files) == 0:
         return Response({"status": "failure", "reason": "No log files provided in request"},
                         status=status.HTTP_400_BAD_REQUEST)
-    logs: multi_threaded_reader = multi_threaded_reader(urls=data['logFiles'], num_threads=data['parallelFileProcessingCount'])
+    logs: multi_threaded_reader = multi_threaded_reader(
+        urls=data['logFiles'], num_threads=data['parallelFileProcessingCount'])
     sorted_logs: list = sort_by_time_stamp(logs)
     cleaned: list = transform(sorted_logs)
     data: dict = aggregate(cleaned)
     response: list = response_format(data)
-    return Response({"response":response}, status=status.HTTP_200_OK)
+    return Response({"response": response}, status=status.HTTP_200_OK)
+
 
 def sort_by_time_stamp(logs):
     data: list = []
@@ -204,6 +215,7 @@ def sort_by_time_stamp(logs):
         data.append(log.split(" "))
     data = sorted(data, key=lambda elem: elem[1])
     return data
+
 
 def response_format(raw_data) -> list:
     response: list = []
@@ -216,6 +228,7 @@ def response_format(raw_data) -> list:
         entry['logs'] = logs
         response.append(entry)
     return response
+
 
 def aggregate(cleaned_logs) -> dict:
     data: dict = {}
@@ -232,7 +245,8 @@ def transform(logs) -> list:
     for log in logs:
         [_, timestamp, text] = log
         text = text.rstrip()
-        timestamp: datetime = datetime.utcfromtimestamp(int(int(timestamp)/1000))
+        timestamp: datetime = datetime.utcfromtimestamp(
+            int(int(timestamp)/1000))
         hours, minutes = timestamp.hour, timestamp.minute
         key = ''
 
@@ -268,5 +282,5 @@ def multi_threaded_reader(urls, num_threads) -> list:
         data = reader(url, constants.MULTI_THREADED_READER_TIMEOUT)
         data = data.decode('utf-8')
         result.extend(data.split("\n"))
-    result = sorted(result, key=lambda elem:elem[1])
+    result = sorted(result, key=lambda elem: elem[1])
     return result

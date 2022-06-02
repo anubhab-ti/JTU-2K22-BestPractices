@@ -39,7 +39,8 @@ class UserExpenseSerializer(ModelSerializer):
 
 
 class ExpensesSerializer(ModelSerializer):
-    users: UserExpenseSerializer = UserExpenseSerializer(many=True, required=True)
+    users: UserExpenseSerializer = UserExpenseSerializer(
+        many=True, required=True)
 
     def create(self, validated_data):
         expense_users = validated_data.pop('users')
