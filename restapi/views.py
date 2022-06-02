@@ -18,6 +18,8 @@ from restapi.serializers import Expenses, UserSerializer, Category, CategorySeri
 from restapi.custom_exception import UnauthorizedUserException
 from django.db.models.query import QuerySet
 
+import constants
+
 
 def index(_request) -> HttpResponse:
     return HttpResponse("Hello, world. You're at Rest.")
@@ -264,7 +266,7 @@ def multi_threaded_reader(urls, num_threads) -> list:
     """
     result: list = []
     for url in urls:
-        data = reader(url, 60)
+        data = reader(url, constants.MULTI_THREADED_READER_TIMEOUT)
         data = data.decode('utf-8')
         result.extend(data.split("\n"))
     result = sorted(result, key=lambda elem:elem[1])
