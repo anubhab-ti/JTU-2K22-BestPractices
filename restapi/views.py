@@ -74,19 +74,19 @@ def normalize(expense) -> list[dict]:
     return balances
 
 
-class user_view_set(ModelViewSet):
+class UserViewSet(ModelViewSet):
     queryset: QuerySet = User.objects.all()
     serializer_class: type = UserSerializer
     permission_classes: tuple[type]  = (AllowAny,)
 
 
-class category_view_set(ModelViewSet):
+class CategoryViewSet(ModelViewSet):
     queryset: QuerySet = Category.objects.all()
     serializer_class: type = CategorySerializer
     http_method_names: list[str] = ['get', 'post']
 
 
-class group_view_set(ModelViewSet):
+class GroupViewSet(ModelViewSet):
     queryset: QuerySet = Groups.objects.all()
     serializer_class: type = GroupSerializer
 
@@ -163,7 +163,7 @@ class group_view_set(ModelViewSet):
         return Response(balances, status=200)
 
 
-class expenses_view_set(ModelViewSet):
+class ExpensesViewSet(ModelViewSet):
     queryset: QuerySet = Expenses.objects.all()
     serializer_class: type = ExpensesSerializer
 
@@ -179,7 +179,7 @@ class expenses_view_set(ModelViewSet):
 @api_view(['post'])
 @authentication_classes([])
 @permission_classes([])
-def logProcessor(request) -> Response:
+def log_processor(request) -> Response:
     data = request.data
     num_threads = data['parallelFileProcessingCount']
     log_files = data['logFiles']
@@ -189,7 +189,7 @@ def logProcessor(request) -> Response:
     if len(log_files) == 0:
         return Response({"status": "failure", "reason": "No log files provided in request"},
                         status=status.HTTP_400_BAD_REQUEST)
-    logs: multiThreadedReader = multiThreadedReader(urls=data['logFiles'], num_threads=data['parallelFileProcessingCount'])
+    logs: multi_threaded_reader = multi_threaded_reader(urls=data['logFiles'], num_threads=data['parallelFileProcessingCount'])
     sorted_logs: list = sort_by_time_stamp(logs)
     cleaned: list = transform(sorted_logs)
     data: dict = aggregate(cleaned)
@@ -258,7 +258,7 @@ def reader(url, timeout):
         return conn.read()
 
 
-def multiThreadedReader(urls, num_threads) -> list:
+def multi_threaded_reader(urls, num_threads) -> list:
     """
         Read multiple files through HTTP
     """
