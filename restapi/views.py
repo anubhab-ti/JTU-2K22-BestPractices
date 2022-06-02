@@ -202,7 +202,6 @@ def sort_by_time_stamp(logs):
     data: list = []
     for log in logs:
         data.append(log.split(" "))
-    # print(data)
     data = sorted(data, key=lambda elem: elem[1])
     return data
 
